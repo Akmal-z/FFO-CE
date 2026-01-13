@@ -140,7 +140,7 @@ def generate_min_one_off_schedule(n_employees, n_days):
 # 🔥 FFO SCHEDULER (FUNCTION NAME KEPT SAME)
 # ------------------------------------------------------------
 
-def FFO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
+def FFO_scheduler(demand, n_employees_per_dept, n_Firefly, n_iter,
                   alpha, evaporation, Q, max_hours, early_stop):
 
     population = []
@@ -158,7 +158,7 @@ def FFO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
     max_emp = max(n_employees_per_dept)
 
     # ---------------- INITIALIZE FIREFLIES ----------------
-    for _ in range(n_ants):
+    for _ in range(n_Firefly):
         schedule = np.zeros((n_departments, n_days, n_periods, max_emp))
         off_schedules = []
 
@@ -183,8 +183,8 @@ def FFO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
     for it in range(n_iter):
         all_scores_iter = []
 
-        for i in range(n_ants):
-            for j in range(n_ants):
+        for i in range(n_Firefly):
+            for j in range(n_Firefly):
                 if fitness_vals[j] < fitness_vals[i]:
                     r = np.linalg.norm(population[i] - population[j])
                     beta = np.exp(-r * r)
@@ -250,7 +250,7 @@ def FFO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
 # ------------------------------------------------------------
 
 st.sidebar.header("FFO Parameters")
-n_ants = st.sidebar.slider("Ants", 5, 50, 20)
+n_Firefly = st.sidebar.slider("Firefly", 5, 50, 20)
 n_iter = st.sidebar.slider("Iterations", 10, 500, 50)
 early_stop = st.sidebar.slider("Early Stop Iterations", 1, 50, 10)
 alpha = st.sidebar.slider("Alpha", 0.1, 5.0, 1.0)
@@ -271,7 +271,7 @@ n_employees_per_dept = [
 
 if st.sidebar.button("Run FFO"):
     best_schedule, best_score, fitness_history, pareto_data, run_time, best_off_schedules, best_idx = \
-        FFO_scheduler(DEMAND, n_employees_per_dept, n_ants, n_iter,
+        FFO_scheduler(DEMAND, n_employees_per_dept, n_Firefly, n_iter,
                       alpha, evaporation, Q, max_hours, early_stop)
 
     st.success(f"Best Fitness Score (from Pareto): {best_score:.2f}")

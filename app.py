@@ -13,12 +13,6 @@ import matplotlib.pyplot as plt
 # ============================================================
 # CONFIG (UNCHANGED)
 # ============================================================
-st.set_page_config(
-    page_title="Employee Shift Scheduling (FFO)",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
 
 st.title(" Employee Shift Scheduling (FFO)✨ ")
 

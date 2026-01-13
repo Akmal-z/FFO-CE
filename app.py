@@ -140,7 +140,7 @@ def generate_min_one_off_schedule(n_employees, n_days):
 # 🔥 FFO SCHEDULER (FUNCTION NAME KEPT SAME)
 # ------------------------------------------------------------
 
-def ACO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
+def FFO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
                   alpha, evaporation, Q, max_hours, early_stop):
 
     population = []
@@ -249,7 +249,7 @@ def ACO_scheduler(demand, n_employees_per_dept, n_ants, n_iter,
 # STREAMLIT CONTROLS (UNCHANGED)
 # ------------------------------------------------------------
 
-st.sidebar.header("ACO Parameters")
+st.sidebar.header("FFO Parameters")
 n_ants = st.sidebar.slider("Ants", 5, 50, 20)
 n_iter = st.sidebar.slider("Iterations", 10, 500, 50)
 early_stop = st.sidebar.slider("Early Stop Iterations", 1, 50, 10)
@@ -269,9 +269,9 @@ n_employees_per_dept = [
 # RUN (UNCHANGED FLOW)
 # ------------------------------------------------------------
 
-if st.sidebar.button("Run ACO"):
+if st.sidebar.button("Run FFO"):
     best_schedule, best_score, fitness_history, pareto_data, run_time, best_off_schedules, best_idx = \
-        ACO_scheduler(DEMAND, n_employees_per_dept, n_ants, n_iter,
+        FFO_scheduler(DEMAND, n_employees_per_dept, n_ants, n_iter,
                       alpha, evaporation, Q, max_hours, early_stop)
 
     st.success(f"Best Fitness Score (from Pareto): {best_score:.2f}")

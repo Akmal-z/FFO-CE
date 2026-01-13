@@ -7,7 +7,7 @@ import time
 import matplotlib.pyplot as plt
 
 #config
-st.title(" Employee Shift Scheduling (FFO) 萤火虫 ")
+st.title(" Employee Shift Scheduling (FFO)")
 
 n_departments = 6
 n_days = 7

@@ -369,3 +369,29 @@ if st.sidebar.button("Run FFO"):
     st.subheader("Summary Total Shortage per Department")
     df_summary = pd.DataFrame(summary_rows, columns=["Department","Total Shortage (People)"])
     st.dataframe(df_summary,use_container_width=True)
+
+
+#radar chart   
+st.subheader("🎯 Constraint Balance (Radar Chart)")
+    bd = compute_penalty_breakdown(best_sched, DEMAND, max_hours)
+    
+    cats = ['Shortage', 'Overwork', 'Min Days', 'Shift Break', 'Consecutive']
+    vals = [bd['shortage'], bd['overwork'], bd['days_min'], bd['shift_break'], bd['nonconsec']]
+    
+    # Normalize for visuals? Raw values are okay if similar magnitude.
+    # If one is huge (e.g. 5000), it dwarfs others. Let's use Log scale or Raw. Sticking to Raw for honesty.
+    
+    # Radar Setup
+    N = len(cats)
+    angles = [n / float(N) * 2 * np.pi for n in range(N)]
+    angles += angles[:1]
+    vals += vals[:1]
+    
+    fig_radar, ax_radar = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax_radar.plot(angles, vals, linewidth=2, linestyle='solid', color='#E63946')
+    ax_radar.fill(angles, vals, '#E63946', alpha=0.25)
+    ax_radar.set_xticks(angles[:-1])
+    ax_radar.set_xticklabels(cats)
+    ax_radar.set_title("Penalty Distribution (Smaller shape is better)")
+    st.pyplot(fig_radar)
+

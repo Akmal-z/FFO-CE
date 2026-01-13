@@ -5,7 +5,6 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import random
 import os
 import time
 import matplotlib.pyplot as plt
@@ -15,7 +14,7 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 st.set_page_config(page_title="Employee Shift Scheduling (FFO)", layout="wide")
-st.title("🔥 Employee Shift Scheduling (FFO – Firefly Optimization)")
+st.title("🔥 Employee Shift Scheduling using Firefly Optimization (FFO)")
 
 # ============================================================
 # PROBLEM SETUP
@@ -24,7 +23,7 @@ st.title("🔥 Employee Shift Scheduling (FFO – Firefly Optimization)")
 n_departments = 6
 n_days = 7
 n_periods = 28
-SHIFT_LENGTH = 14   # 14 periods = 7 hours
+SHIFT_LENGTH = 14
 
 # ============================================================
 # PENALTY SETTINGS
@@ -84,17 +83,15 @@ def compute_penalty_breakdown(schedule, demand, max_hours):
     total_shift_break = 0
     total_nonconsec = 0
 
-    n_departments, days, periods, employees = schedule.shape
-
     for dept in range(n_departments):
-        for d in range(days):
-            for t in range(periods):
+        for d in range(n_days):
+            for t in range(n_periods):
                 assigned = np.sum(schedule[dept, d, t, :])
                 required = demand[dept, d, t]
                 if assigned < required:
                     total_shortage += (required - assigned) * PENALTY_SHORTAGE
 
-        for e in range(employees):
+        for e in range(schedule.shape[3]):
             total_hours = np.sum(schedule[:, :, :, e])
             if total_hours > max_hours:
                 total_overwork += (total_hours - max_hours) * PENALTY_OVERHOURS
@@ -103,8 +100,8 @@ def compute_penalty_breakdown(schedule, demand, max_hours):
             if days_worked < (n_days - 1):
                 total_days_min += PENALTY_DAYS_MIN
 
-        for d in range(days):
-            for e in range(employees):
+        for d in range(n_days):
+            for e in range(schedule.shape[3]):
                 daily = schedule[dept, d, :, e]
                 worked = np.sum(daily)
                 if worked > 0 and worked != SHIFT_LENGTH:
@@ -112,8 +109,13 @@ def compute_penalty_breakdown(schedule, demand, max_hours):
                 if worked == SHIFT_LENGTH and longest_consecutive_ones(daily) < SHIFT_LENGTH:
                     total_nonconsec += PENALTY_NONCONSEC
 
-    total_fitness = (total_shortage + total_overwork +
-                     total_days_min + total_shift_break + total_nonconsec)
+    total_fitness = (
+        total_shortage +
+        total_overwork +
+        total_days_min +
+        total_shift_break +
+        total_nonconsec
+    )
 
     return {
         "total_fitness": total_fitness,
@@ -132,8 +134,10 @@ def compute_objectives(schedule, demand, max_hours):
     for dept in range(n_departments):
         for d in range(n_days):
             for t in range(n_periods):
-                shortage += max(demand[dept, d, t] -
-                                np.sum(schedule[dept, d, t]), 0)
+                shortage += max(
+                    demand[dept, d, t] - np.sum(schedule[dept, d, t]),
+                    0
+                )
 
     for e in range(schedule.shape[3]):
         hours = np.sum(schedule[:, :, :, e])
@@ -147,18 +151,24 @@ def fitness(schedule, demand, max_hours):
     return compute_penalty_breakdown(schedule, demand, max_hours)["total_fitness"]
 
 # ============================================================
-# FFO SCHEDULER
+# FFO ALGORITHM
 # ============================================================
 
-def FFO_scheduler(demand, n_employees_per_dept,
-                  n_fireflies, n_iter,
-                  alpha, beta0, gamma,
-                  max_hours, early_stop):
+def FFO_scheduler(
+    demand,
+    n_employees_per_dept,
+    n_fireflies,
+    n_iter,
+    alpha,
+    beta0,
+    gamma,
+    max_hours,
+    early_stop
+):
 
     population = []
     fitness_vals = []
     pareto_raw = []
-    pareto_schedules = []
 
     best_global = float("inf")
     best_schedule = None
@@ -167,7 +177,7 @@ def FFO_scheduler(demand, n_employees_per_dept,
 
     max_emp = max(n_employees_per_dept)
 
-    # 🔹 Initialization
+    # Initialization
     for _ in range(n_fireflies):
         sched = np.random.randint(
             0, 2,
@@ -178,32 +188,28 @@ def FFO_scheduler(demand, n_employees_per_dept,
 
     start_time = time.time()
 
-    # 🔁 Main Loop
     for it in range(n_iter):
         for i in range(n_fireflies):
             for j in range(n_fireflies):
-
                 if fitness_vals[j] < fitness_vals[i]:
                     r = np.linalg.norm(population[i] - population[j])
                     beta = beta0 * np.exp(-gamma * r * r)
 
-                    population[i] = population[i] + \
-                        beta * (population[j] - population[i]) + \
-                        alpha * np.random.rand(*population[i].shape)
+                    population[i] = (
+                        population[i]
+                        + beta * (population[j] - population[i])
+                        + alpha * np.random.rand(*population[i].shape)
+                    )
 
                     population[i] = np.clip(population[i], 0, 1)
                     population[i] = (population[i] > 0.5).astype(int)
 
                     fitness_vals[i] = fitness(population[i], demand, max_hours)
 
-        # Pareto store
         for sched in population:
-            s, w = compute_objectives(sched, demand, max_hours)
-            pareto_raw.append((s, w))
-            pareto_schedules.append(sched.copy())
+            pareto_raw.append(compute_objectives(sched, demand, max_hours))
 
         best_iter = min(fitness_vals)
-
         if best_iter < best_global:
             best_global = best_iter
             best_schedule = population[np.argmin(fitness_vals)].copy()
@@ -250,16 +256,25 @@ n_employees_per_dept = [
 # ============================================================
 
 if st.sidebar.button("🔥 Run FFO"):
-    best_schedule, best_score, history, pareto_data, runtime = \
-        FFO_scheduler(DEMAND, n_employees_per_dept,
-                      n_fireflies, n_iter,
-                      alpha, beta0, gamma,
-                      max_hours, early_stop)
 
-    st.success(f"Best Fitness Score (Pareto-aware): {best_score}")
+    best_schedule, best_score, history, pareto_data, runtime = FFO_scheduler(
+        DEMAND,
+        n_employees_per_dept,
+        n_fireflies,
+        n_iter,
+        alpha,
+        beta0,
+        gamma,
+        max_hours,
+        early_stop
+    )
+
+    st.success(f"Best Fitness Score: {best_score}")
     st.info(f"Computation Time: {runtime:.2f} seconds")
 
-    # 🔹 Convergence Plot
+    # --------------------------------------------------------
+    # Convergence Plot
+    # --------------------------------------------------------
     iters = [h["iteration"] for h in history]
     bests = [h["best"] for h in history]
 
@@ -270,13 +285,51 @@ if st.sidebar.button("🔥 Run FFO"):
     ax.set_title("FFO Fitness Convergence")
     st.pyplot(fig)
 
-    # 🔹 Fitness Breakdown
+    # --------------------------------------------------------
+    # Fitness Breakdown
+    # --------------------------------------------------------
     st.subheader("Fitness Breakdown")
-    breakdown = compute_penalty_breakdown(best_schedule, DEMAND, max_hours)
-    st.json(breakdown)
+    bd = compute_penalty_breakdown(best_schedule, DEMAND, max_hours)
+    st.json(bd)
 
-    # 🔹 Pareto Front
+    # --------------------------------------------------------
+    # 🎯 Radar Chart
+    # --------------------------------------------------------
+    st.subheader("🎯 Constraint Balance (Radar Chart)")
+
+    categories = [
+        "Shortage",
+        "Overwork",
+        "Min Days",
+        "Shift Break",
+        "Non-Consecutive"
+    ]
+
+    values = [
+        bd["shortage"],
+        bd["overwork"],
+        bd["days_min"],
+        bd["shift_break"],
+        bd["nonconsec"]
+    ]
+
+    angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
+    values += values[:1]
+    angles += angles[:1]
+
+    fig_radar, ax_radar = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    ax_radar.plot(angles, values, linewidth=2, color="#E63946")
+    ax_radar.fill(angles, values, color="#E63946", alpha=0.25)
+    ax_radar.set_xticks(angles[:-1])
+    ax_radar.set_xticklabels(categories)
+    ax_radar.set_title("Penalty Distribution (Smaller = Better)")
+    st.pyplot(fig_radar)
+
+    # --------------------------------------------------------
+    # Pareto Front
+    # --------------------------------------------------------
     st.subheader("Pareto Front")
+
     p = np.array(pareto_data)
     fig, ax = plt.subplots()
     ax.scatter(p[:, 0], p[:, 1], alpha=0.6)
